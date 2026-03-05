@@ -69,68 +69,70 @@
 
 <script>
     // --- KONFIGURATION ---
-    // Erstat med dit link fra: Filer > Del > Publicer på nettet > Vælg fanen "Donationer" > CSV
-    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRuhVyZl0e36c2tHDR_wFwwOR0zt5I4HtrA821yeKt-lLgQp5qtv_syUZ8So7HWnKr80al7xYI2LcCb/pub?output=csv'; 
+    // Dette link peger nu specifikt på dit ark og sikrer korrekt CSV-format
+    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRuhVyZl0e36c2tHDR_wFwwOR0zt5I4HtrA821yeKt-lLgQp5qtv_syUZ8So7HWnKr80al7xYI2LcCb/pub?gid=0&single=true&output=csv'; 
 
     let allData = [];
 
-    // Hent data
     function loadData() {
         Papa.parse(CSV_URL, {
             download: true,
             header: true,
+            skipEmptyLines: true,
             complete: function(results) {
-                allData = results.data.filter(row => row['Donor Navn']); // Fjern tomme rækker
+                // Vi mapper dine kolonnenavne (Donor, Parti, Beløb) så de passer til visningen
+                allData = results.data;
                 document.getElementById('loading').style.display = 'none';
-                document.getElementById('statusText').innerText = `Klar! Gennemsøger ${allData.length} donationer.`;
+                document.getElementById('statusText').innerText = `Klar! Gennemsøger ${allData.length} rækker.`;
                 displayData(allData);
             },
             error: function(err) {
-                document.getElementById('statusText').innerText = "Fejl ved indlæsning af data. Tjek dit CSV link.";
+                document.getElementById('statusText').innerText = "Fejl ved indlæsning. Tjek om arket er 'Publiceret på nettet'.";
             }
         });
     }
 
-    // Vis data i grid
     function displayData(data) {
         const container = document.getElementById('results');
         container.innerHTML = '';
 
+        if (data.length === 0) {
+            container.innerHTML = '<p style="grid-column: 1/-1; text-align: center;">Ingen resultater fundet.</p>';
+            return;
+        }
+
         data.forEach(item => {
             const div = document.createElement('div');
             div.className = 'result-card';
+            // Her bruger vi de præcise navne fra dine Excel-overskrifter: Donor, Parti, Beløb, Dato
             div.innerHTML = `
-                <h3>${item['Modtager (Parti)'] || 'Ukendt Parti'}</h3>
-                <p><strong>Donor:</strong> ${item['Donor Navn']}</p>
-                <p class="amount">${item['Beløb (DKK)'] || '0'} kr.</p>
-                <p><small>År: ${item['Dato/År'] || '-'} | ${item['Kommentar/Note'] || ''}</small></p>
+                <h3>${item['Parti'] || 'Ukendt Parti'}</h3>
+                <p><strong>Donor:</strong> ${item['Donor'] || 'Privat'}</p>
+                <p class="amount">${item['Beløb'] || '0'} kr.</p>
+                <p><small>Dato: ${item['Dato'] || '-'} | Type: ${item['Type'] || ''}</small></p>
             `;
             container.appendChild(div);
         });
     }
 
-    // Søge-logik
     document.getElementById('searchInput').addEventListener('input', (e) => {
         const term = e.target.value.toLowerCase();
-        const filtered = allData.filter(row => 
-            row['Donor Navn'].toLowerCase().includes(term) || 
-            row['Modtager (Parti)'].toLowerCase().includes(term)
-        );
+        const filtered = allData.filter(row => {
+            const donor = (row['Donor'] || '').toLowerCase();
+            const parti = (row['Parti'] || '').toLowerCase();
+            return donor.includes(term) || parti.includes(term);
+        });
         displayData(filtered);
     });
 
-    // Hurtig-søgning via billeder
     function quickSearch(name) {
         const searchInput = document.getElementById('searchInput');
         searchInput.value = name;
-        // Trigger søgningen
         const event = new Event('input');
         searchInput.dispatchEvent(event);
-        // Scroll ned til resultater
         searchInput.scrollIntoView({ behavior: 'smooth' });
     }
 
-    // Start
     loadData();
 </script>
 
