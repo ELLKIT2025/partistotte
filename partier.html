@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parti-oversigt | Valg 2026</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f4f4; margin: 0; padding: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; max-width: 1200px; margin: 0 auto; }
+        
+        .parti-card { background: white; border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-top: 6px solid #ccc; }
+        .parti-card img { height: 80px; width: auto; margin-bottom: 15px; }
+        .parti-letter { font-size: 1.5rem; font-weight: bold; color: #666; display: block; }
+        .total-amount { font-size: 2rem; font-weight: 800; color: #e60000; margin: 10px 0; }
+        .btn-view { display: inline-block; padding: 10px 20px; background: #333; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px; }
+        
+        /* Farver baseret på partibogstav (eksempel) */
+        .card-A { border-top-color: #E32F3B; } /* S */
+        .card-V { border-top-color: #004480; } /* V */
+        .card-Ø { border-top-color: #902720; } /* EL */
+    </style>
+</head>
+<body>
+
+<h1 style="text-align:center;">Hvor meget har partierne modtaget?</h1>
+<p style="text-align:center; color: #666;">Totalbeløb baseret på indberettede donationer i 2026-valgkampen</p>
+
+<div id="partiGrid" class="grid">
+    <p style="text-align:center;">Henter data...</p>
+</div>
+
+<script>
+    // --- KONFIGURATION ---
+    // Du skal bruge TO links her fra "Publicer på nettet"
+    const DONATIONER_CSV = 'LINK_TIL_DIN_DONATIONER_FANE_CSV';
+    const PARTI_INFO_CSV = 'LINK_TIL_DIN_PARTI_INFO_FANE_CSV';
+
+    async function fetchData() {
+        const responseDonations = await fetch(DONATIONER_CSV);
+        const csvDonations = await responseDonations.text();
+        const donations = Papa.parse(csvDonations, { header: true }).data;
+
+        const responseInfo = await fetch(PARTI_INFO_CSV);
+        const csvInfo = await responseInfo.text();
+        const partiInfo = Papa.parse(csvInfo, { header: true }).data;
+
+        renderPartier(partiInfo, donations);
+    }
+
+    function renderPartier(info, donations) {
+        const container = document.getElementById('partiGrid');
+        container.innerHTML = '';
+
+        info.forEach(parti => {
+            if(!parti['Parti Navn']) return;
+
+            // Beregn total for dette parti
+            const total = donations
+                .filter(d => d['Modtager (Parti)'] === parti['Parti Navn'])
+                .reduce((sum, d) => {
+                    // Fjerner punktummer og omdanner til tal
+                    const beløb = parseFloat(d['Beløb (DKK)'].replace(/\./g, '').replace(',', '.')) || 0;
+                    return sum + beløb;
+                }, 0);
+
+            const card = document.createElement('div');
+            card.className = `parti-card card-${parti['Partibogstav']}`;
+            card.innerHTML = `
+                <span class="parti-letter">${parti['Partibogstav']}</span>
+                <img src="${parti['Logo URL'] || 'https://via.placeholder.com/100'}" alt="${parti['Parti Navn']}">
+                <h3>${parti['Parti Navn']}</h3>
+                <div class="total-amount">${total.toLocaleString('da-DK')} kr.</div>
+                <p>${parti['Beskrivelse (Brødtekst)'] || ''}</p>
+                <a href="index.html?search=${parti['Parti Navn']}" class="btn-view">Se alle donorer</a>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    fetchData();
+</script>
+
+</body>
+</html>
