@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Partistøtte-oversigt 2026</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; background-color: #f9f9f9; }
+        header { background: #fff; padding: 20px; text-align: center; border-bottom: 3px solid #e60000; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+        
+        /* Milliardær-sektion */
+        .milliardær-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 30px 0; }
+        .donor-card { cursor: pointer; text-align: center; background: #fff; padding: 10px; border-radius: 8px; transition: transform 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .donor-card:hover { transform: scale(1.05); border: 1px solid #e60000; }
+        .donor-card img { width: 100%; height: 120px; object-fit: cover; border-radius: 5px; }
+
+        /* Søgefelt */
+        .search-box { width: 100%; padding: 15px; font-size: 1.2rem; border: 2px solid #ddd; border-radius: 30px; margin-bottom: 20px; outline: none; }
+        .search-box:focus { border-color: #e60000; }
+
+        /* Resultater */
+        .results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .result-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 5px solid #e60000; }
+        .result-card h3 { margin-top: 0; color: #e60000; }
+        .amount { font-size: 1.2rem; font-weight: bold; color: #222; }
+        
+        .loading { text-align: center; padding: 50px; font-style: italic; color: #666; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Hvem køber indflydelse?</h1>
+    <p>Følg pengene i dansk politik frem mod Valg 2026</p>
+</header>
+
+<div class="container">
+    
+    <h3>Klik på en stor-donor for at se deres bidrag:</h3>
+    <div class="milliardær-grid">
+        <div class="donor-card" onclick="quickSearch('A.P. Møller')">
+            <img src="https://via.placeholder.com/150?text=Mærsk" alt="Mærsk">
+            <p>Mærsk</p>
+        </div>
+        <div class="donor-card" onclick="quickSearch('Novo Nordisk')">
+            <img src="https://via.placeholder.com/150?text=Novo" alt="Novo Nordisk">
+            <p>Novo Nordisk</p>
+        </div>
+        <div class="donor-card" onclick="quickSearch('Lego')">
+            <img src="https://via.placeholder.com/150?text=Kirk+K" alt="Lego">
+            <p>Kirk Kristiansen</p>
+        </div>
+    </div>
+
+    <hr>
+
+    <div style="text-align: center; margin-top: 40px;">
+        <h2>Søg i databasen</h2>
+        <input type="text" id="searchInput" class="search-box" placeholder="Søg på donor eller parti...">
+        <div id="statusText">Henter data fra Google Sheets...</div>
+    </div>
+
+    <div id="loading" class="loading">Indlæser donationer...</div>
+    <div id="results" class="results-grid"></div>
+
+</div>
+
+<script>
+    // --- KONFIGURATION ---
+    // Erstat med dit link fra: Filer > Del > Publicer på nettet > Vælg fanen "Donationer" > CSV
+    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRuhVyZl0e36c2tHDR_wFwwOR0zt5I4HtrA821yeKt-lLgQp5qtv_syUZ8So7HWnKr80al7xYI2LcCb/pub?output=csv'; 
+
+    let allData = [];
+
+    // Hent data
+    function loadData() {
+        Papa.parse(CSV_URL, {
+            download: true,
+            header: true,
+            complete: function(results) {
+                allData = results.data.filter(row => row['Donor Navn']); // Fjern tomme rækker
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('statusText').innerText = `Klar! Gennemsøger ${allData.length} donationer.`;
+                displayData(allData);
+            },
+            error: function(err) {
+                document.getElementById('statusText').innerText = "Fejl ved indlæsning af data. Tjek dit CSV link.";
+            }
+        });
+    }
+
+    // Vis data i grid
+    function displayData(data) {
+        const container = document.getElementById('results');
+        container.innerHTML = '';
+
+        data.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'result-card';
+            div.innerHTML = `
+                <h3>${item['Modtager (Parti)'] || 'Ukendt Parti'}</h3>
+                <p><strong>Donor:</strong> ${item['Donor Navn']}</p>
+                <p class="amount">${item['Beløb (DKK)'] || '0'} kr.</p>
+                <p><small>År: ${item['Dato/År'] || '-'} | ${item['Kommentar/Note'] || ''}</small></p>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    // Søge-logik
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase();
+        const filtered = allData.filter(row => 
+            row['Donor Navn'].toLowerCase().includes(term) || 
+            row['Modtager (Parti)'].toLowerCase().includes(term)
+        );
+        displayData(filtered);
+    });
+
+    // Hurtig-søgning via billeder
+    function quickSearch(name) {
+        const searchInput = document.getElementById('searchInput');
+        searchInput.value = name;
+        // Trigger søgningen
+        const event = new Event('input');
+        searchInput.dispatchEvent(event);
+        // Scroll ned til resultater
+        searchInput.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Start
+    loadData();
+</script>
+
+</body>
+</html>
